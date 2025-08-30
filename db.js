@@ -79,3 +79,10 @@ async function init() {
     console.log('Seeded user "Spicy Games" with password "Sana_1982".');
   }
 }
+
+module.exports = {
+  run,
+  get,
+  all,
+  init
+};
