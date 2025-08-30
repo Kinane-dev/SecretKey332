@@ -1,0 +1,18 @@
+<section>
+  <h2>Sujets</h2>
+  <% if (threads.length === 0) { %>
+    <p>Pas encore de sujets. <a href="/thread/new">Créer un sujet</a>.</p>
+  <% } else { %>
+    <ul class="thread-list">
+      <% threads.forEach(t => { %>
+        <li class="thread">
+          <a href="/thread/<%= t.id %>"><%= t.title %></a>
+          <div class="meta">par <strong><%= t.username || 'Inconnu' %></strong>
+            <% if (t.verified) { %><span class="badge">✔ vérifié</span><% } %>
+            · <small><%= new Date(t.created_at).toLocaleString() %></small>
+          </div>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+</section>

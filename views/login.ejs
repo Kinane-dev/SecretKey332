@@ -1,0 +1,17 @@
+<section>
+  <h2><%= register ? 'S’inscrire' : 'Se connecter' %></h2>
+  <% if (error) { %>
+    <div class="error"><%= error %></div>
+  <% } %>
+  <form method="post" action="<%= register ? '/register' : '/login' %>">
+    <label>
+      Nom d’utilisateur
+      <input name="username" required />
+    </label>
+    <label>
+      Mot de passe
+      <input type="password" name="password" required />
+    </label>
+    <button type="submit"><%= register ? 'S’inscrire' : 'Se connecter' %></button>
+  </form>
+</section>

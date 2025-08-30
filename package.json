@@ -1,0 +1,21 @@
+{
+  "name": "mini-forum-demo",
+  "version": "1.0.0",
+  "description": "Minimal forum demo with a pre-registered user (Spicy Games).",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "bcrypt": "^5.1.0",
+    "body-parser": "^1.20.2",
+    "ejs": "^3.1.9",
+    "express": "^4.18.2",
+    "express-ejs-layouts": "^2.5.1",
+    "express-session": "^1.17.3",
+    "sqlite3": "^5.1.6"
+  }
+}

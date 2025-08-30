@@ -1,0 +1,35 @@
+<article>
+  <h2><%= thread.title %></h2>
+  <p class="meta">par <strong><%= thread.username || 'Inconnu' %></strong>
+    <% if (thread.verified) { %><span class="badge">✔ vérifié</span><% } %>
+    · <small><%= new Date(thread.created_at).toLocaleString() %></small>
+  </p>
+  <div class="content"><pre><%= thread.content %></pre></div>
+
+  <section class="posts">
+    <h3>Réponses</h3>
+    <% if (posts.length === 0) { %><p>Pas encore de réponses.</p><% } %>
+    <% posts.forEach(p => { %>
+      <div class="post">
+        <div class="post-meta">
+          <strong><%= p.username || 'Inconnu' %></strong>
+          <% if (p.verified) { %><span class="badge">✔ vérifié</span><% } %>
+          · <small><%= new Date(p.created_at).toLocaleString() %></small>
+        </div>
+        <div class="post-body"><pre><%= p.content %></pre></div>
+      </div>
+    <% }) %>
+  </section>
+
+  <% if (user) { %>
+    <section class="reply">
+      <h4>Poster une réponse</h4>
+      <form method="post" action="/thread/<%= thread.id %>/post">
+        <textarea name="content" rows="5" required></textarea>
+        <button type="submit">Répondre</button>
+      </form>
+    </section>
+  <% } else { %>
+    <p><a href="/login">Se connecter</a> pour poster une réponse.</p>
+  <% } %>
+</article>

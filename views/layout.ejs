@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Forum sans titre (je n'ai pas d'idée de nom)</title>
+  <link rel="stylesheet" href="/public/styles.css" />
+</head>
+<body>
+  <header>
+    <h1><a href="/">Forum sans titre (je n'ai pas d'idée de nom)</a></h1>
+    <nav>
+      <% if (user) { %>
+        <span class="user">Connecté en tant que <strong><%= user.username %></strong>
+        <% if (user.verified) { %> <span class="badge">✔ vérifié</span><% } %>
+        </span>
+        <a href="/thread/new">Nouveau sujet</a>
+        <a href="/logout">Se déconnecter</a>
+      <% } else { %>
+        <a href="/login">Se connecter</a>
+        <a href="/register">S’inscrire</a>
+      <% } %>
+    </nav>
+  </header>
+  <main>
+    <%- body %>
+  </main>
+</body>
+</html>
