@@ -39,6 +39,7 @@ async function init() {
       username TEXT UNIQUE,
       password_hash TEXT,
       verified INTEGER DEFAULT 0,
+      avatar TEXT, -- chemin vers l'image
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -66,26 +67,15 @@ async function init() {
     )
   `);
 
-  // Seed pre-registered user "Spicy Games"
+  // Seed admin
   const user = await get(`SELECT * FROM users WHERE username = ?`, ['Admin']);
   if (!user) {
-    // WARNING: For demo only. We hash the password before saving.
     const plain = 'Sana_1982';
     const hash = await bcrypt.hash(plain, 10);
     await run(
       `INSERT INTO users (username, password_hash, verified) VALUES (?, ?, 1)`,
       ['Admin', hash]
     );
-    console.log('Seeded user "Spicy Games" with password "Sana_1982" (hashed in DB).');
-  } else {
-    console.log('User "Spicy Games" already exists.');
+    console.log('Seeded user "Spicy Games" with password "Sana_1982".');
   }
 }
-
-module.exports = {
-  db,
-  init,
-  run,
-  get,
-  all
-};
