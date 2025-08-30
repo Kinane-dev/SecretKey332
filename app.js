@@ -1,134 +1,110 @@
 const express = require('express');
 const session = require('express-session');
-const bodyParser = require('body-parser');
-const db = require('./db');
-const bcrypt = require('bcrypt');
+const SQLiteStore = require('connect-sqlite3')(session);
 const path = require('path');
-const expressLayouts = require('express-ejs-layouts');
+const multer = require('multer');
+const fs = require('fs');
 
+const database = require('./db'); // <-- objet avec init, run, get, all
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-// EJS + layouts
+// Initialisation DB
+database.init().then(() => {
+  console.log("✅ Database initialized");
+}).catch(err => {
+  console.error("❌ Failed to init DB:", err);
+});
+
+// Middlewares
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+app.use('/public', express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Sessions (SQLite store au lieu de MemoryStore)
+app.use(session({
+  store: new SQLiteStore,
+  secret: 'SecretUltraFort',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { maxAge: 7 * 24 * 60 * 60 * 1000 } // 1 semaine
+}));
+
+// Moteur de templates
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
-app.use(expressLayouts);
-app.set('layout', 'layout');
 
-// Static & middlewares
-app.use('/public', express.static(path.join(__dirname, 'public')));
-app.use(bodyParser.urlencoded({ extended: false }));
-
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET || 'dev-secret',
-    resave: false,
-    saveUninitialized: false,
-  })
-);
-
-function requireLogin(req, res, next) {
-  if (!req.session.user) return res.redirect('/login');
+// Middleware pour injecter l’utilisateur connecté dans toutes les vues
+app.use(async (req, res, next) => {
+  if (req.session.userId) {
+    const user = await database.get(`SELECT * FROM users WHERE id = ?`, [req.session.userId]);
+    res.locals.user = user;
+  } else {
+    res.locals.user = null;
+  }
   next();
-}
-
-app.get('/', async (req, res) => {
-  const threads = await db.all(
-    `SELECT t.*, u.username, u.verified FROM threads t LEFT JOIN users u ON t.author_id = u.id ORDER BY t.created_at DESC`
-  );
-  res.render('index', { user: req.session.user, threads });
 });
 
-app.get('/thread/new', requireLogin, (req, res) => {
-  res.render('new-thread', { user: req.session.user });
-});
+// Multer config pour upload avatars
+const uploadDir = path.join(__dirname, 'uploads/avatars');
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
-app.post('/thread/new', requireLogin, async (req, res) => {
-  const { title, content } = req.body;
-  await db.run(
-    `INSERT INTO threads (title, content, author_id) VALUES (?, ?, ?)`,
-    [title, content, req.session.user.id]
-  );
-  res.redirect('/');
-});
-
-app.get('/thread/:id', async (req, res) => {
-  const id = req.params.id;
-  const thread = await db.get(
-    `SELECT t.*, u.username, u.verified FROM threads t LEFT JOIN users u ON t.author_id = u.id WHERE t.id = ?`,
-    [id]
-  );
-  if (!thread) return res.status(404).send('Thread not found');
-  const posts = await db.all(
-    `SELECT p.*, u.username, u.verified FROM posts p LEFT JOIN users u ON p.author_id = u.id WHERE p.thread_id = ? ORDER BY p.created_at ASC`,
-    [id]
-  );
-  res.render('thread', { user: req.session.user, thread, posts });
-});
-
-app.post('/thread/:id/post', requireLogin, async (req, res) => {
-  const threadId = req.params.id;
-  const { content } = req.body;
-  await db.run(
-    `INSERT INTO posts (thread_id, author_id, content) VALUES (?, ?, ?)`,
-    [threadId, req.session.user.id, content]
-  );
-  res.redirect(`/thread/${threadId}`);
-});
-
-// Login
-app.get('/login', (req, res) => {
-  res.render('login', { user: req.session.user, error: null, register: false });
-});
-
-app.post('/login', async (req, res) => {
-  const { username, password } = req.body;
-  const row = await db.get(`SELECT * FROM users WHERE username = ?`, [username]);
-  if (!row) {
-    return res.render('login', { user: null, error: 'Invalid username or password', register: false });
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, req.session.userId + '-' + Date.now() + ext);
   }
-  const ok = await bcrypt.compare(password, row.password_hash);
-  if (!ok) {
-    return res.render('login', { user: null, error: 'Invalid username or password', register: false });
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10Mo max
+  fileFilter: (req, file, cb) => {
+    if (!file.mimetype.startsWith("image/")) {
+      return cb(new Error("Seules les images sont autorisées"));
+    }
+    cb(null, true);
   }
-  req.session.user = { id: row.id, username: row.username, verified: !!row.verified };
-  res.redirect('/');
 });
 
-app.get('/logout', (req, res) => {
-  req.session.destroy(() => res.redirect('/'));
+// Route GET profil
+app.get('/MyProfile', (req, res) => {
+  if (!req.session.userId) return res.redirect('/login');
+  res.render('MyProfile', { user: res.locals.user });
 });
 
-// Register
-app.get('/register', (req, res) => {
-  res.render('login', { user: req.session.user, error: null, register: true });
-});
+// Route POST update profil
+app.post('/update-profile', upload.single('avatar'), async (req, res) => {
+  if (!req.session.userId) return res.redirect('/login');
 
-app.post('/register', async (req, res) => {
-  const { username, password } = req.body;
-  if (!username || !password) {
-    return res.render('login', { user: null, error: 'Missing fields', register: true });
-  }
-  const existing = await db.get(`SELECT id FROM users WHERE username = ?`, [username]);
-  if (existing) {
-    return res.render('login', { user: null, error: 'Username taken', register: true });
-  }
-  const hash = await bcrypt.hash(password, 10);
-  const info = await db.run(`INSERT INTO users (username, password_hash) VALUES (?, ?)`, [username, hash]);
-  const userId = info.lastID;
-  req.session.user = { id: userId, username, verified: false };
-  res.redirect('/');
-});
-
-// Start server
-(async () => {
   try {
-    await db.init();
-    app.listen(PORT, () => {
-      console.log(`Forum demo running on http://localhost:${PORT}`);
-    });
+    const newUsername = req.body.username;
+    let avatarPath = res.locals.user.avatar;
+
+    if (req.file) {
+      avatarPath = '/uploads/avatars/' + req.file.filename;
+    }
+
+    await database.run(
+      `UPDATE users SET username = ?, avatar = ? WHERE id = ?`,
+      [newUsername, avatarPath, req.session.userId]
+    );
+
+    res.redirect('/MyProfile');
   } catch (err) {
-    console.error('Failed to start app:', err);
-    process.exit(1);
+    console.error("Erreur update profil:", err);
+    res.status(500).send("Erreur lors de la mise à jour du profil");
   }
-})();
+});
+
+// Exemple route accueil
+app.get('/', async (req, res) => {
+  res.render('index', { body: "<h2>Bienvenue sur le forum</h2>" });
+});
+
+// Lancement serveur
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log("🚀 Serveur démarré sur http://localhost:" + PORT);
+});
