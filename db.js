@@ -39,7 +39,7 @@ async function init() {
       username TEXT UNIQUE,
       password_hash TEXT,
       verified INTEGER DEFAULT 0,
-      avatar TEXT, -- chemin vers l'image
+      avatar TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
