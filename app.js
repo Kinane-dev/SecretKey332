@@ -34,7 +34,7 @@ app.use(session({
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-// Middleware pour injecter l’utilisateur connecté dans toutes les vues
+// Middleware pour injecter l'utilisateur connecté dans toutes les vues
 app.use(async (req, res, next) => {
   if (req.session.userId) {
     const user = await database.get(`SELECT * FROM users WHERE id = ?`, [req.session.userId]);
@@ -98,9 +98,23 @@ app.post('/update-profile', upload.single('avatar'), async (req, res) => {
   }
 });
 
-// Exemple route accueil
+// Route d'accueil - récupère et affiche les threads
 app.get('/', async (req, res) => {
-  res.render('index', { body: "<h2>Bienvenue sur le forum</h2>" });
+  try {
+    // Récupérer tous les threads de la base de données
+    const threads = await database.all(`
+      SELECT t.*, u.username, u.verified 
+      FROM threads t 
+      LEFT JOIN users u ON t.user_id = u.id 
+      ORDER BY t.created_at DESC
+    `);
+    
+    res.render('index', { threads });
+  } catch (err) {
+    console.error("Erreur lors du chargement des threads:", err);
+    // En cas d'erreur, passer un tableau vide
+    res.render('index', { threads: [] });
+  }
 });
 
 // Lancement serveur
