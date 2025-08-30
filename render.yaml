@@ -1,0 +1,18 @@
+# Nom du service sur Render
+services:
+  - type: web
+    name: spicygames-forum
+    env: node
+    branch: main  # branche Git à déployer
+    plan: free    # plan gratuit
+    buildCommand: npm install express-ejs-layouts
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000  # Render va remplacer par sa variable $PORT automatiquement
+      # Ajoute ici tes autres variables d'environnement si besoin, ex:
+      # - key: DB_PATH
+      #   value: ./database.sqlite
